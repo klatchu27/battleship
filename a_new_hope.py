@@ -18,7 +18,7 @@ def calculateMove(gameState):
     else:
         persistentData["handCount"] += 1
         move = customMove(gameState)
-    print("worse", str(persistentData["handCount"]) + ". MOVE: " + str(move))
+    print(str(persistentData["handCount"]) + ". MOVE: " + str(move))
     return move
 
 
@@ -35,10 +35,10 @@ def customMove(gameState):
     p = np.zeros((n, n, 3), dtype=int)
 
     if len(hit) == 0:
-        if len(afloat) <= 2:
+        if len(afloat) <= 0:
             return chooseRandomValidTarget(gameState)
         print("random possible")
-        return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+        return chooseLessExplored(gameState["OppBoard"], afloat)
     else:
         print(afloat)
         for l in afloat:
@@ -105,7 +105,7 @@ def getProbMatrix(board, afloat):
                         # prob[i][j] += 1
                         for l in range(length):
                             prob[i][j + l] += 1
-    return prob            
+    return prob
 
 
 # choosing less explored reginon randomly
@@ -120,23 +120,22 @@ def chooseLessExplored(board, afloat):
             queue = [[i, j]]
             vis = {}
             vis[(i, j)] = 1
+            inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
             while len(queue) > 0:
                 [r, c] = queue.pop(0)
                 if board[r][c] != "":
                     dist[i][j] = abs(i - r) + abs(j - c)
                     break
-                if r + 1 < n and (r + 1, c) not in vis:
-                    queue.append([r + 1, c])
-                    vis[(r + 1, c)] = 1
-                if r - 1 >= 0 and (r - 1, c) not in vis:
-                    queue.append([r - 1, c])
-                    vis[(r - 1, c)] = 1
-                if c + 1 < n and (r, c + 1) not in vis:
-                    queue.append([r, c + 1])
-                    vis[(r, c + 1)] = 1
-                if c - 1 >= 0 and (r, c - 1) not in vis:
-                    queue.append([r, c - 1])
-                    vis[(r, c - 1)] = 1
+                for [delr, delc] in inc:
+                    if (
+                        (r + delr, c + delc) not in vis
+                        and r + delr < n
+                        and r + delr >= 0
+                        and c + delc < n
+                        and c + delc >= 0
+                    ):
+                        queue.append([r + delr, c + delc])
+                        vis[(r + delr, c + delc)] = 1
 
             if dist[i][j] == 0:
                 dist[i][j] = n
@@ -146,6 +145,8 @@ def chooseLessExplored(board, afloat):
         for j in range(n):
             if prob[i][j] == 0:
                 dist[i][j] = 0
+            else:
+                dist[i][j] += int(prob[i][j] / 2)
 
     result = np.where(dist == np.amax(dist))
     same = list(zip(result[0], result[1]))
