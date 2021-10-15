@@ -95,20 +95,22 @@ def choosePosRandomValidTarget(board, afloat):
                             ver = False
                             break
                     if ver == True:
-                        prob[i][j] += 1
+                        # prob[i][j] += 1
+                        for l in range(length):
+                            prob[i + l][j] += 1
                 if j + length - 1 < n:
                     for l in range(length):
                         if board[i][j + l] != "":
                             hor = False
                             break
                     if hor == True:
-                        prob[i][j] += 1
+                        # prob[i][j] += 1
+                        for l in range(length):
+                            prob[i][j + l] += 1
 
     result = np.where(prob == np.amax(prob))
     same = list(zip(result[0], result[1]))
-    # print("same",same)
     random.shuffle(same)
-    # print(same[0],np.amax(prob))
     return {"Row": chr(int(same[0][0]) + 65), "Column": (int(same[0][1]) + 1)}
 
 
