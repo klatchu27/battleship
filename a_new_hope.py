@@ -78,9 +78,7 @@ def customMove(gameState):
     return chooseRandomValidTarget(gameState)
 
 
-# Rank each empty positon by no of possible afloat ships which can
-# be placed and randomly choose one of the positon with max possible ships
-def choosePosRandomValidTarget(board, afloat):
+def getProbMatrix(board, afloat):
     prob = np.zeros((n, n))
 
     for length in afloat:
@@ -107,7 +105,58 @@ def choosePosRandomValidTarget(board, afloat):
                         # prob[i][j] += 1
                         for l in range(length):
                             prob[i][j + l] += 1
+    return prob            
 
+
+# choosing less explored reginon randomly
+def chooseLessExplored(board, afloat):
+    dist = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            if board[i][j] != "":
+                continue
+
+            queue = [[i, j]]
+            vis = {}
+            vis[(i, j)] = 1
+            while len(queue) > 0:
+                [r, c] = queue.pop(0)
+                if board[r][c] != "":
+                    dist[i][j] = abs(i - r) + abs(j - c)
+                    break
+                if r + 1 < n and (r + 1, c) not in vis:
+                    queue.append([r + 1, c])
+                    vis[(r + 1, c)] = 1
+                if r - 1 >= 0 and (r - 1, c) not in vis:
+                    queue.append([r - 1, c])
+                    vis[(r - 1, c)] = 1
+                if c + 1 < n and (r, c + 1) not in vis:
+                    queue.append([r, c + 1])
+                    vis[(r, c + 1)] = 1
+                if c - 1 >= 0 and (r, c - 1) not in vis:
+                    queue.append([r, c - 1])
+                    vis[(r, c - 1)] = 1
+
+            if dist[i][j] == 0:
+                dist[i][j] = n
+
+    prob = getProbMatrix(board, afloat)
+    for i in range(n):
+        for j in range(n):
+            if prob[i][j] == 0:
+                dist[i][j] = 0
+
+    result = np.where(dist == np.amax(dist))
+    same = list(zip(result[0], result[1]))
+    random.shuffle(same)
+    return {"Row": chr(int(same[0][0]) + 65), "Column": (int(same[0][1]) + 1)}
+
+
+# Rank each empty positon by no of possible afloat ships which can
+# be placed and randomly choose one of the positon with max possible ships
+def choosePosRandomValidTarget(board, afloat):
+    prob = getProbMatrix(board, afloat)
     result = np.where(prob == np.amax(prob))
     same = list(zip(result[0], result[1]))
     random.shuffle(same)
