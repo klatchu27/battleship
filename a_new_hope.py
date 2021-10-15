@@ -120,22 +120,16 @@ def chooseLessExplored(board, afloat):
             queue = [[i, j]]
             vis = {}
             vis[(i, j)] = 1
-            inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
             while len(queue) > 0:
                 [r, c] = queue.pop(0)
                 if board[r][c] != "":
                     dist[i][j] = abs(i - r) + abs(j - c)
                     break
-                for [delr, delc] in inc:
-                    if (
-                        (r + delr, c + delc) not in vis
-                        and r + delr < n
-                        and r + delr >= 0
-                        and c + delc < n
-                        and c + delc >= 0
-                    ):
-                        queue.append([r + delr, c + delc])
-                        vis[(r + delr, c + delc)] = 1
+                adj = selectUntargetedAdjacentCell(r, c, board)
+                for [ar, ac] in adj:
+                    if (ar, ac) not in vis:
+                        queue.append([ar, ac])
+                        vis[(ar, ac)] = 1
 
             if dist[i][j] == 0:
                 dist[i][j] = n
@@ -188,34 +182,29 @@ def getSpecific(i, j, board, length, orientation):
 
 # returns no of already hit positions of a ship
 # given its starting pt, length and orientation
-def checkShip(i, j, board, length, orientation):
+def checkShip(r, c, board, length, orientation):
     hits_count = 0
-    if orientation == 1:
-        if i + length - 1 >= len(board):
-            return -1
-        for l in range(length):
-            if (
-                board[i + l][j] == "M"
-                or board[i + l][j] == "LM"
-                or board[i + l][j] == "L"
-                or len(board[i + l][j]) == 2
-            ):
-                return 0
-            if board[i + l][j] == "H":
-                hits_count += 1
-    else:
-        if j + length - 1 >= len(board[0]):
-            return -1
-        for l in range(length):
-            if (
-                board[i][j + l] == "M"
-                or board[i][j + l] == "LM"
-                or board[i][j + l] == "L"
-                or len(board[i][j + l]) == 2
-            ):
-                return 0
-            if board[i][j + l] == "H":
-                hits_count += 1
+    mr = 0
+    mc = 0
+    if orientation == 1:  # vrtical
+        mr = 1
+        if r + length - 1 >= n:
+            return 0
+    else:  # horizontal
+        mc = 1
+        if c + length - 1 >= n:
+            return 0
+
+    for l in range(length):
+        if (
+            board[r + mr * l][c + mc * l] == "M"
+            or board[r + mr * l][c + mc * l] == "LM"
+            or board[r + mr * l][c + mc * l] == "L"
+            or len(board[r + mr * l][c + mc * l]) == 2
+        ):
+            return 0
+        if board[r + mr * l][c + mc * l] == "H":
+            hits_count += 1
     return hits_count
 
 
@@ -314,20 +303,18 @@ def shipsStillAfloat(gameState):
 
 
 # Returns a list of cells adjacent to the input cell that are free to be targeted (not including land)
-def selectUntargetedAdjacentCell(row, column, oppBoard):
+def selectUntargetedAdjacentCell(r, c, board):
     adjacent = []  # List of adjacent cells
-    if row > 0 and oppBoard[row - 1][column] == "":  # If there is a cell above
-        adjacent.append((row - 1, column))  # Add to list of adjacent cells
-    if (
-        row < len(oppBoard) - 1 and oppBoard[row + 1][column] == ""
-    ):  # If there is a cell below
-        adjacent.append((row + 1, column))  # Add to list of adjacent cells
-    if column > 0 and oppBoard[row][column - 1] == "":  # If there is a cell left
-        adjacent.append((row, column - 1))  # Add to list of adjacent cells
-    if (
-        column < len(oppBoard[0]) - 1 and oppBoard[row][column + 1] == ""
-    ):  # If there is a cell right
-        adjacent.append((row, column + 1))  # Add to list of adjacent cells
+    inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+    for [dr, dc] in inc:
+        if (
+            r + dr < n
+            and r + dr >= 0
+            and c + dc < n
+            and c + dc >= 0
+            and board[r][c] == ""
+        ):
+            adjacent.append([r + dr, c + dc])
     return adjacent
 
 
