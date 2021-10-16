@@ -14,7 +14,7 @@ def calculateMove(gameState):
     if "handCount" not in persistentData:
         persistentData["handCount"] = 0
     if gameState["Round"] == 0:
-        move = deployRandomly(gameState["MyBoard"], gameState["Ships"])
+        move = deployWithGap(gameState["MyBoard"], gameState["Ships"])
     else:
         persistentData["handCount"] += 1
         move = customMove(gameState)
@@ -35,8 +35,8 @@ def customMove(gameState):
     p = np.zeros((n, n, 3), dtype=int)
 
     if len(hit) == 0:
-        if len(afloat) <= 0:
-            return chooseRandomValidTarget(gameState)
+        if len(afloat) <= 1:
+            return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
         print("random possible")
         return chooseLessExplored(gameState["OppBoard"], afloat)
     else:
@@ -152,7 +152,7 @@ def chooseLessExplored(board, afloat):
 # be placed and randomly choose one of the positon with max possible ships
 def choosePosRandomValidTarget(board, afloat):
     prob = getProbMatrix(board, afloat)
-    result = np.where(prob == np.amax(prob))
+    result = np.where(prob > 0)
     same = list(zip(result[0], result[1]))
     random.shuffle(same)
     return {"Row": chr(int(same[0][0]) + 65), "Column": (int(same[0][1]) + 1)}
@@ -214,6 +214,11 @@ def deployWithGap(board, ships, threshold=0):
     d = {}
     for l in ships:
         d[str(l)] = 1
+        
+    r = None
+    c = None
+    orientation = None
+    move = []
 
     for ind in range(len(ships)):
         length = ships[ind]
@@ -243,6 +248,8 @@ def deployWithGap(board, ships, threshold=0):
                                 cnt += 1
                 if cnt <= threshold:
                     deployed = deployShip(r, c, board, length, "V", ind)
+                    if deployed:
+                        orientation = "V"
             if c + length - 1 < n and not deployed:
                 cnt = 0
                 for l in range(length):
@@ -257,6 +264,10 @@ def deployWithGap(board, ships, threshold=0):
                                 cnt += 1
                 if cnt <= threshold:
                     deployed = deployShip(r, c, board, length, "H", ind)
+                    if deployed:
+                        orientation = "H"
+        move.append({"Row": chr(r + 65), "Column": (c+ 1), "Orientation": orientation}) 
+    return {"Placement":move}
 
 
 # Deploys all the ships randomly on a blank board
