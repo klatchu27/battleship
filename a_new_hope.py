@@ -16,7 +16,7 @@ def calculateMove(gameState):
     if gameState["Round"] == 0:
         ships = []
         for i in range(len(gameState["Ships"])):
-            ships.append([i, gameState["Ships"][i]])
+            ships.append([i,gameState["Ships"][i]])
         move = deployWithGap(gameState["MyBoard"], ships)
         # move = deployRandomly(gameState["MyBoard"],ships)
     else:
@@ -44,7 +44,7 @@ def customMove(gameState):
         print("random possible")
         return chooseLessExplored(gameState["OppBoard"], afloat)
     else:
-        print(afloat)
+        # print(afloat)
         for l in afloat:
             for i in range(n):
                 for j in range(n):
@@ -75,7 +75,7 @@ def customMove(gameState):
             j = ii[1]
             pos = getSpecific(i, j, gameState["OppBoard"], p[i][j][1], p[i][j][2])
             if pos != [-1, -1]:
-                print(i, j, p[i][j])
+                # print(i, j, p[i][j])
                 return translateMove(pos[0], pos[1])
 
     print("random enddd")
@@ -137,15 +137,20 @@ def chooseLessExplored(board, afloat):
 
             if dist[i][j] == 0:
                 dist[i][j] = n
-
+    
     prob = getProbMatrix(board, afloat)
+    
+    maxd = np.amax(dist)
+    maxprob =  np.amax(prob)
+    
     for i in range(n):
         for j in range(n):
             if prob[i][j] == 0:
                 dist[i][j] = 0
             else:
-                dist[i][j] += int(prob[i][j] / 2)
-
+                dist[i][j] = int((100*dist[i][j])/maxd)
+                dist[i][j] += int((262*prob[i][j] )/maxprob)
+    
     result = np.where(dist == np.amax(dist))
     same = list(zip(result[0], result[1]))
     random.shuffle(same)
@@ -218,13 +223,13 @@ def deployWithGap(board, ships, threshold=0):
     d = {}
     for l in ships:
         d[str(l)] = 1
-
+        
     r = None
     c = None
     orientation = None
     move = []
 
-    for [ind, length] in ships:
+    for [ind,length] in ships:
         if length <= 0:
             continue
         deployed = False
@@ -247,13 +252,10 @@ def deployWithGap(board, ships, threshold=0):
                             and c + dc < n
                             and c + dc >= 0
                         ):
-                            if (
-                                board[r + l + dr][c + dc] != ""
-                                and board[r + l + dr][c + dc] != "L"
-                            ):
+                            if board[r + l + dr][c + dc]!="" and board[r + l + dr][c + dc] !="L":
                                 cnt += 1
                 if cnt <= threshold:
-
+                    
                     deployed = deployShip(r, c, board, length, "V", ind)
                     if deployed:
                         orientation = "V"
@@ -267,17 +269,14 @@ def deployWithGap(board, ships, threshold=0):
                             and c + l + dc < n
                             and c + l + dc >= 0
                         ):
-                            if (
-                                board[r + dr][c + l + dc] != ""
-                                and board[r + dr][c + l + dc] != "L"
-                            ):
+                            if board[r + dr][c + l + dc] != "" and board[r + dr][c + l + dc]!="L" :
                                 cnt += 1
                 if cnt <= threshold:
                     deployed = deployShip(r, c, board, length, "H", ind)
                     if deployed:
                         orientation = "H"
-        move.append({"Row": chr(r + 65), "Column": (c + 1), "Orientation": orientation})
-    return {"Placement": move}
+        move.append({"Row": chr(r + 65), "Column": (c+ 1), "Orientation": orientation}) 
+    return {"Placement":move}
 
 
 # Deploys all the ships randomly on a blank board
@@ -286,7 +285,7 @@ def deployRandomly(board, ships):
     orientation = None
     row = None
     column = None
-    for [i, length] in ships:  # For every ship that needs to be deployed
+    for [i,length] in ships:  # For every ship that needs to be deployed
         if length <= 0:
             continue
         deployed = False
