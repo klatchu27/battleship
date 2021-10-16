@@ -241,7 +241,7 @@ def deployWithGap(board, ships, threshold=0):
                         ):
                             if board[r + l + dr][c + dc] in d:
                                 cnt += 1
-                if cnt <= threshold:
+                if cnt < threshold + 1:
                     deployed = deployShip(r, c, board, length, "V", ind)
             if c + length - 1 < n and not deployed:
                 cnt = 0
