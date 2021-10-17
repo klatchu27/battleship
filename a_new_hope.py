@@ -239,7 +239,9 @@ def deployWithGap(board, ships, threshold=0):
 
     start_time = time.time()
 
-    for [ind, length] in ships:
+
+    for kk in range(len(ships)):
+        [ind, length] = ships[kk]
         if length <= 0:
             continue
         deployed = False
@@ -247,7 +249,10 @@ def deployWithGap(board, ships, threshold=0):
         while not deployed:
 
             if time.time() - start_time > 1.0:
-                return deployRandomly(board, ships)
+                ships_rem = []
+                for kkk in range(kk, len(ships)):
+                    ships_rem.append(ships[kkk])
+                return deployRandomly(board, ships_rem)
 
             r = randint(0, n - 1)
             c = randint(0, n - 1)
