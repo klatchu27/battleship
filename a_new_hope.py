@@ -17,7 +17,7 @@ def calculateMove(gameState):
     if gameState["Round"] == 0:
         ships = []
         for i in range(len(gameState["Ships"])):
-            ships.append([i,gameState["Ships"][i]])
+            ships.append([i, gameState["Ships"][i]])
         move = deployWithGap(gameState["MyBoard"], ships)
         # move = deployRandomly(gameState["MyBoard"],ships)
     else:
@@ -41,17 +41,17 @@ def customMove(gameState):
 
     if len(hit) == 0:
         choice = 0
-        if len(afloat)>1:
-            choice = randint(0,4)
+        if len(afloat) > 1:
+            choice = randint(0, 4)
             if choice >= 4:
                 return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
             return chooseLessExplored(gameState["OppBoard"], afloat)
         else:
-            choice = randint(0,3)
+            choice = randint(0, 3)
             if choice >= 2:
                 return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
             return chooseLessExplored(gameState["OppBoard"], afloat)
-                
+
     else:
         for l in afloat:
             for i in range(n):
@@ -145,20 +145,20 @@ def chooseLessExplored(board, afloat):
 
             if dist[i][j] == 0:
                 dist[i][j] = n
-    
+
     prob = getProbMatrix(board, afloat)
-    
+
     maxd = np.amax(dist)
-    maxprob =  np.amax(prob)
-    
+    maxprob = np.amax(prob)
+
     for i in range(n):
         for j in range(n):
             if prob[i][j] == 0:
                 dist[i][j] = 0
             else:
-                dist[i][j] = int((100*dist[i][j])/maxd)
-                dist[i][j] += int((262*prob[i][j] )/maxprob)
-    
+                dist[i][j] = int((100 * dist[i][j]) / maxd)
+                dist[i][j] += int((262 * prob[i][j]) / maxprob)
+
     result = np.where(dist == np.amax(dist))
     same = list(zip(result[0], result[1]))
     random.shuffle(same)
@@ -231,31 +231,31 @@ def deployWithGap(board, ships, threshold=0):
     d = {}
     for l in ships:
         d[str(l)] = 1
-        
+
     r = None
     c = None
     orientation = None
     move = []
-    
+
     start_time = time.time()
 
-    for [ind,length] in ships:
+    for [ind, length] in ships:
         if length <= 0:
             continue
         deployed = False
 
         while not deployed:
-            
-            if time.time()-start_time >1.0:
-                return deployRandomly(board,ships)
-            
+
+            if time.time() - start_time > 1.0:
+                return deployRandomly(board, ships)
+
             r = randint(0, n - 1)
             c = randint(0, n - 1)
             while vis[r][c] == 1:
                 r = randint(0, n - 1)
                 c = randint(0, n - 1)
             vis[r][c] = 1
-            inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+            inc = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
             if r + length - 1 < n and not deployed:
                 cnt = 0
                 for l in range(length):
@@ -266,10 +266,13 @@ def deployWithGap(board, ships, threshold=0):
                             and c + dc < n
                             and c + dc >= 0
                         ):
-                            if board[r + l + dr][c + dc]!="" and board[r + l + dr][c + dc] !="L":
+                            if (
+                                board[r + l + dr][c + dc] != ""
+                                and board[r + l + dr][c + dc] != "L"
+                            ):
                                 cnt += 1
                 if cnt <= threshold:
-                    
+
                     deployed = deployShip(r, c, board, length, "V", ind)
                     if deployed:
                         orientation = "V"
@@ -283,15 +286,18 @@ def deployWithGap(board, ships, threshold=0):
                             and c + l + dc < n
                             and c + l + dc >= 0
                         ):
-                            if board[r + dr][c + l + dc] != "" and board[r + dr][c + l + dc]!="L" :
+                            if (
+                                board[r + dr][c + l + dc] != ""
+                                and board[r + dr][c + l + dc] != "L"
+                            ):
                                 cnt += 1
                 if cnt <= threshold:
                     deployed = deployShip(r, c, board, length, "H", ind)
                     if deployed:
                         orientation = "H"
-        move.append({"Row": chr(r + 65), "Column": (c+ 1), "Orientation": orientation}) 
+        move.append({"Row": chr(r + 65), "Column": (c + 1), "Orientation": orientation})
     print("succesfully deployed ships with gaps")
-    return {"Placement":move}
+    return {"Placement": move}
 
 
 # Deploys all the ships randomly on a blank board
@@ -301,7 +307,7 @@ def deployRandomly(board, ships):
     orientation = None
     row = None
     column = None
-    for [i,length] in ships:  # For every ship that needs to be deployed
+    for [i, length] in ships:  # For every ship that needs to be deployed
         if length <= 0:
             continue
         deployed = False
