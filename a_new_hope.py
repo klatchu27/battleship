@@ -3,6 +3,7 @@ botName = "klatchu27-1"
 import random
 import numpy as np
 import functools
+import time
 import json
 from random import randint, choice
 
@@ -14,11 +15,15 @@ def calculateMove(gameState):
     if "handCount" not in persistentData:
         persistentData["handCount"] = 0
     if gameState["Round"] == 0:
-        move = deployRandomly(gameState)
+        ships = []
+        for i in range(len(gameState["Ships"])):
+            ships.append([i,gameState["Ships"][i]])
+        move = deployWithGap(gameState["MyBoard"], ships)
+        # move = deployRandomly(gameState["MyBoard"],ships)
     else:
         persistentData["handCount"] += 1
         move = customMove(gameState)
-    print("worse", str(persistentData["handCount"]) + ". MOVE: " + str(move))
+    print(str(persistentData["handCount"]) + ". MOVE: " + str(move))
     return move
 
 
@@ -35,12 +40,19 @@ def customMove(gameState):
     p = np.zeros((n, n, 3), dtype=int)
 
     if len(hit) == 0:
-        if len(afloat) <= 2:
-            return chooseRandomValidTarget(gameState)
-        print("random possible")
-        return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+        choice = 0
+        if len(afloat)>1:
+            choice = randint(0,4)
+            if choice >= 4:
+                return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+            return chooseLessExplored(gameState["OppBoard"], afloat)
+        else:
+            choice = randint(0,3)
+            if choice >= 2:
+                return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+            return chooseLessExplored(gameState["OppBoard"], afloat)
+                
     else:
-        print(afloat)
         for l in afloat:
             for i in range(n):
                 for j in range(n):
@@ -71,16 +83,14 @@ def customMove(gameState):
             j = ii[1]
             pos = getSpecific(i, j, gameState["OppBoard"], p[i][j][1], p[i][j][2])
             if pos != [-1, -1]:
-                print(i, j, p[i][j])
+                # print(i, j, p[i][j])
                 return translateMove(pos[0], pos[1])
 
     print("random enddd")
     return chooseRandomValidTarget(gameState)
 
 
-# Rank each empty positon by no of possible afloat ships which can
-# be placed and randomly choose one of the positon with max possible ships
-def choosePosRandomValidTarget(board, afloat):
+def getProbMatrix(board, afloat):
     prob = np.zeros((n, n))
 
     for length in afloat:
@@ -95,20 +105,73 @@ def choosePosRandomValidTarget(board, afloat):
                             ver = False
                             break
                     if ver == True:
-                        prob[i][j] += 1
+                        # prob[i][j] += 1
+                        for l in range(length):
+                            prob[i + l][j] += 1
                 if j + length - 1 < n:
                     for l in range(length):
                         if board[i][j + l] != "":
                             hor = False
                             break
                     if hor == True:
-                        prob[i][j] += 1
+                        # prob[i][j] += 1
+                        for l in range(length):
+                            prob[i][j + l] += 1
+    return prob
 
-    result = np.where(prob == np.amax(prob))
+
+# choosing less explored reginon randomly
+def chooseLessExplored(board, afloat):
+    dist = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(n):
+            if board[i][j] != "":
+                continue
+
+            queue = [[i, j]]
+            vis = {}
+            vis[(i, j)] = 1
+            while len(queue) > 0:
+                [r, c] = queue.pop(0)
+                if board[r][c] != "":
+                    dist[i][j] = abs(i - r) + abs(j - c)
+                    break
+                adj = selectUntargetedAdjacentCell(r, c, board)
+                for [ar, ac] in adj:
+                    if (ar, ac) not in vis:
+                        queue.append([ar, ac])
+                        vis[(ar, ac)] = 1
+
+            if dist[i][j] == 0:
+                dist[i][j] = n
+    
+    prob = getProbMatrix(board, afloat)
+    
+    maxd = np.amax(dist)
+    maxprob =  np.amax(prob)
+    
+    for i in range(n):
+        for j in range(n):
+            if prob[i][j] == 0:
+                dist[i][j] = 0
+            else:
+                dist[i][j] = int((100*dist[i][j])/maxd)
+                dist[i][j] += int((262*prob[i][j] )/maxprob)
+    
+    result = np.where(dist == np.amax(dist))
     same = list(zip(result[0], result[1]))
-    # print("same",same)
     random.shuffle(same)
-    # print(same[0],np.amax(prob))
+    return {"Row": chr(int(same[0][0]) + 65), "Column": (int(same[0][1]) + 1)}
+
+
+# Rank each empty positon by no of possible afloat ships which can
+# be placed and randomly choose one of the positon with max possible ships
+def choosePosRandomValidTarget(board, afloat):
+    prob = getProbMatrix(board, afloat)
+    result = np.where(prob > 0)
+    same = list(zip(result[0], result[1]))
+    random.shuffle(same)
     return {"Row": chr(int(same[0][0]) + 65), "Column": (int(same[0][1]) + 1)}
 
 
@@ -136,56 +199,135 @@ def getSpecific(i, j, board, length, orientation):
 
 # returns no of already hit positions of a ship
 # given its starting pt, length and orientation
-def checkShip(i, j, board, length, orientation):
+def checkShip(r, c, board, length, orientation):
     hits_count = 0
-    if orientation == 1:
-        if i + length - 1 >= len(board):
-            return -1
-        for l in range(length):
-            if (
-                board[i + l][j] == "M"
-                or board[i + l][j] == "LM"
-                or board[i + l][j] == "L"
-                or len(board[i + l][j]) == 2
-            ):
-                return 0
-            if board[i + l][j] == "H":
-                hits_count += 1
-    else:
-        if j + length - 1 >= len(board[0]):
-            return -1
-        for l in range(length):
-            if (
-                board[i][j + l] == "M"
-                or board[i][j + l] == "LM"
-                or board[i][j + l] == "L"
-                or len(board[i][j + l]) == 2
-            ):
-                return 0
-            if board[i][j + l] == "H":
-                hits_count += 1
+    mr = 0
+    mc = 0
+    if orientation == 1:  # vrtical
+        mr = 1
+        if r + length - 1 >= n:
+            return 0
+    else:  # horizontal
+        mc = 1
+        if c + length - 1 >= n:
+            return 0
+
+    for l in range(length):
+        if (
+            board[r + mr * l][c + mc * l] == "M"
+            or board[r + mr * l][c + mc * l] == "LM"
+            or board[r + mr * l][c + mc * l] == "L"
+            or len(board[r + mr * l][c + mc * l]) == 2
+        ):
+            return 0
+        if board[r + mr * l][c + mc * l] == "H":
+            hits_count += 1
     return hits_count
 
 
+# try to deploy ships so that they are not adjacent to each other as much as possible
+def deployWithGap(board, ships, threshold=0):
+    vis = np.zeros((n, n))
+    d = {}
+    for l in ships:
+        d[str(l)] = 1
+        
+    r = None
+    c = None
+    orientation = None
+    move = []
+    
+    start_time = time.time()
+
+    for [ind,length] in ships:
+        if length <= 0:
+            continue
+        deployed = False
+
+        while not deployed:
+            
+            if time.time()-start_time >1.0:
+                return deployRandomly(board,ships)
+            
+            r = randint(0, n - 1)
+            c = randint(0, n - 1)
+            while vis[r][c] == 1:
+                r = randint(0, n - 1)
+                c = randint(0, n - 1)
+            vis[r][c] = 1
+            inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+            if r + length - 1 < n and not deployed:
+                cnt = 0
+                for l in range(length):
+                    for [dr, dc] in inc:
+                        if (
+                            r + l + dr < n
+                            and r + l + dr >= 0
+                            and c + dc < n
+                            and c + dc >= 0
+                        ):
+                            if board[r + l + dr][c + dc]!="" and board[r + l + dr][c + dc] !="L":
+                                cnt += 1
+                if cnt <= threshold:
+                    
+                    deployed = deployShip(r, c, board, length, "V", ind)
+                    if deployed:
+                        orientation = "V"
+            if c + length - 1 < n and not deployed:
+                cnt = 0
+                for l in range(length):
+                    for [dr, dc] in inc:
+                        if (
+                            r + dr < n
+                            and r + dr >= 0
+                            and c + l + dc < n
+                            and c + l + dc >= 0
+                        ):
+                            if board[r + dr][c + l + dc] != "" and board[r + dr][c + l + dc]!="L" :
+                                cnt += 1
+                if cnt <= threshold:
+                    deployed = deployShip(r, c, board, length, "H", ind)
+                    if deployed:
+                        orientation = "H"
+        move.append({"Row": chr(r + 65), "Column": (c+ 1), "Orientation": orientation}) 
+    print("succesfully deployed ships with gaps")
+    return {"Placement":move}
+
+
 # Deploys all the ships randomly on a blank board
-def deployRandomly(gameState):
+def deployRandomly(board, ships):
+    print("randomly deploying ships")
     move = []  # Initialise move as an emtpy list
     orientation = None
     row = None
     column = None
-    for i in range(len(gameState["Ships"])):  # For every ship that needs to be deployed
+    for [i,length] in ships:  # For every ship that needs to be deployed
+        if length <= 0:
+            continue
         deployed = False
         while (
             not deployed
         ):  # Keep randomly choosing locations until a valid one is chosen
-            row = randint(0, len(gameState["MyBoard"]) - 1)  # Randomly pick a row
-            column = randint(
-                0, len(gameState["MyBoard"][0]) - 1
-            )  # Randomly pick a column
+            row = randint(0, n - 1)  # Randomly pick a row
+            column = randint(0, n - 1)  # Randomly pick a column
             orientation = choice(["H", "V"])  # Randomly pick an orientation
             if deployShip(
-                row, column, gameState["MyBoard"], gameState["Ships"][i], orientation, i
+                row,
+                column,
+                board,
+                length,
+                orientation,
+                i,
+                False,
             ):  # If ship can be successfully deployed to that location...
+                deployShip(
+                    row,
+                    column,
+                    board,
+                    length,
+                    orientation,
+                    i,
+                )
                 deployed = True  # ...then the ship has been deployed
         move.append(
             {"Row": chr(row + 65), "Column": (column + 1), "Orientation": orientation}
@@ -194,7 +336,7 @@ def deployRandomly(gameState):
 
 
 # Returns whether given location can fit given ship onto given board and, if it can, updates the given board with that ships position
-def deployShip(i, j, board, length, orientation, ship_num):
+def deployShip(i, j, board, length, orientation, ship_num, deploy=True):
     if orientation == "V":  # If we are trying to place ship vertically
         if i + length - 1 >= len(board):  # If ship doesn't fit within board boundaries
             return False  # Ship not deployed
@@ -203,8 +345,9 @@ def deployShip(i, j, board, length, orientation, ship_num):
                 board[i + l][j] != ""
             ):  # If there is something on the board obstructing the ship
                 return False  # Ship not deployed
-        for l in range(length):  # For every section of the ship
-            board[i + l][j] = str(ship_num)  # Place the ship on the board
+        if deploy:
+            for l in range(length):  # For every section of the ship
+                board[i + l][j] = str(ship_num)  # Place the ship on the board
     else:  # If we are trying to place ship horizontally
         if j + length - 1 >= len(
             board[0]
@@ -215,8 +358,9 @@ def deployShip(i, j, board, length, orientation, ship_num):
                 board[i][j + l] != ""
             ):  # If there is something on the board obstructing the ship
                 return False  # Ship not deployed
-        for l in range(length):  # For every section of the ship
-            board[i][j + l] = str(ship_num)  # Place the ship on the board
+        if deploy:
+            for l in range(length):  # For every section of the ship
+                board[i][j + l] = str(ship_num)  # Place the ship on the board
     return True  # Ship deployed
 
 
@@ -262,20 +406,18 @@ def shipsStillAfloat(gameState):
 
 
 # Returns a list of cells adjacent to the input cell that are free to be targeted (not including land)
-def selectUntargetedAdjacentCell(row, column, oppBoard):
+def selectUntargetedAdjacentCell(r, c, board):
     adjacent = []  # List of adjacent cells
-    if row > 0 and oppBoard[row - 1][column] == "":  # If there is a cell above
-        adjacent.append((row - 1, column))  # Add to list of adjacent cells
-    if (
-        row < len(oppBoard) - 1 and oppBoard[row + 1][column] == ""
-    ):  # If there is a cell below
-        adjacent.append((row + 1, column))  # Add to list of adjacent cells
-    if column > 0 and oppBoard[row][column - 1] == "":  # If there is a cell left
-        adjacent.append((row, column - 1))  # Add to list of adjacent cells
-    if (
-        column < len(oppBoard[0]) - 1 and oppBoard[row][column + 1] == ""
-    ):  # If there is a cell right
-        adjacent.append((row, column + 1))  # Add to list of adjacent cells
+    inc = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+    for [dr, dc] in inc:
+        if (
+            r + dr < n
+            and r + dr >= 0
+            and c + dc < n
+            and c + dc >= 0
+            and board[r][c] == ""
+        ):
+            adjacent.append([r + dr, c + dc])
     return adjacent
 
 
