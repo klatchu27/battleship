@@ -3,6 +3,7 @@ botName = "klatchu27-1"
 import random
 import numpy as np
 import functools
+import time
 import json
 from random import randint, choice
 
@@ -39,12 +40,19 @@ def customMove(gameState):
     p = np.zeros((n, n, 3), dtype=int)
 
     if len(hit) == 0:
-        if len(afloat) <= 1:
-            return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
-        print("random possible")
-        return chooseLessExplored(gameState["OppBoard"], afloat)
+        choice = 0
+        if len(afloat)>1:
+            choice = randint(0,4)
+            if choice >= 4:
+                return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+            return chooseLessExplored(gameState["OppBoard"], afloat)
+        else:
+            choice = randint(0,3)
+            if choice >= 2:
+                return choosePosRandomValidTarget(gameState["OppBoard"], afloat)
+            return chooseLessExplored(gameState["OppBoard"], afloat)
+                
     else:
-        # print(afloat)
         for l in afloat:
             for i in range(n):
                 for j in range(n):
@@ -228,6 +236,8 @@ def deployWithGap(board, ships, threshold=0):
     c = None
     orientation = None
     move = []
+    
+    start_time = time.time()
 
     for [ind,length] in ships:
         if length <= 0:
@@ -235,6 +245,10 @@ def deployWithGap(board, ships, threshold=0):
         deployed = False
 
         while not deployed:
+            
+            if time.time()-start_time >1.0:
+                return deployRandomly(board,ships)
+            
             r = randint(0, n - 1)
             c = randint(0, n - 1)
             while vis[r][c] == 1:
@@ -276,11 +290,13 @@ def deployWithGap(board, ships, threshold=0):
                     if deployed:
                         orientation = "H"
         move.append({"Row": chr(r + 65), "Column": (c+ 1), "Orientation": orientation}) 
+    print("succesfully deployed ships with gaps")
     return {"Placement":move}
 
 
 # Deploys all the ships randomly on a blank board
 def deployRandomly(board, ships):
+    print("randomly deploying ships")
     move = []  # Initialise move as an emtpy list
     orientation = None
     row = None
